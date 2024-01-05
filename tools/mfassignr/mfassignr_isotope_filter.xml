@@ -1,0 +1,89 @@
+<tool id="mfassignr_isotope_filter" name="MFAssignR Isotope Filter" version="@TOOL_VERSION@+galaxy0" profile="21.09">
+    <description>Identifies and separates likely isotopic masses from monoisotopic masses</description>
+    
+    <macros>
+        <import>macros.xml</import>
+    </macros>
+
+    <edam_operations>
+        <edam_operation>operation_3695</edam_operation>
+    </edam_operations>
+    <expand macro="refs"/>
+    <expand macro="creator"/>
+    <expand macro="requirements"/>
+
+    <command detect_errors='aggressive'><![CDATA[
+        Rscript -e 'source("${run_script}")'
+    ]]></command>
+
+<configfiles>
+    <configfile name="run_script"><![CDATA[
+        raw <- read.csv("$input_file")
+        
+        output <- MFAssignR::IsoFiltR(
+            peaks = raw,
+            SN = $sn,
+            Carbrat = $carb_ratio,
+            Sulfrat = $sulf_ratio,
+            Sulferr = $sulf_error,
+            Carberr = $carb_error
+        )
+
+        write.csv(output[1], "$mono_output")
+        write.csv(output[2], "$iso_output")
+    ]]></configfile>
+</configfiles>
+
+    <inputs>
+        <param label="CSV file" name="input_file" type="data" format="csv"
+            help="CSV containing two column with the abundance in the first column and the measured ion mass in the second column. This should be the raw mass list output." />
+
+        <param label="Noise Cut" name="sn" type="integer" value="0" help="Sets the noise cut for the data, peaks below this value will not be evaluated." />
+        <param label="Carb Ratio" name="carb_ratio" type="integer" value="60" help="Sets the maximum 13C/12C ratio that is allowed for matching, default is 60." />
+        <param label="Sulf Ratio" name="sulf_ratio" type="integer" value="30" help="Sets the maximum 34S/32S ratio that is allowed for matching, default is 30." />
+        <param label="Sulf Rrror" name="sulf_error" type="integer" value="5" help="Sets the maximum allowed error (ppm) for 34S mass matching, default is 5." />
+        <param label="Carb Rrror" name="carb_error" type="integer" value="5" help="Sets the maximum allowed error (ppm) for 13C mass matching, default is 5" />
+    </inputs>
+
+    <outputs>
+        <data label="Monolist ${tool.name} on ${on_string}" name="mono_output" format="csv" />
+        <data label="Isolist ${tool.name} on ${on_string}" name="iso_output" format="csv" />
+    </outputs>
+
+    <tests>
+        <test>
+            <param name="input_file" value="isofiltr/QC1_1_NEG_500.csv" ftype="csv"/>
+            <output name="mono_output">
+                <assert_contents>
+                    <has_size value="524288" delta="300"/>
+                    <has_n_lines n="9205" delta="10"/>
+                </assert_contents>
+            </output>
+            <output name="iso_output">
+                <assert_contents>
+                    <has_size value="159744" delta="300"/>
+                    <has_n_lines n="2472" delta="10"/>
+                </assert_contents>
+            </output>
+        </test>
+    </tests>
+
+    <help>
+        **Description**
+            IsoFiltR separates likely isotopic masses from monoisotopic masses in a mass 
+            list. It can identify likely 13C and 34S isotopic masses and put them in a 
+            separate mass list from the monoisotopic masses. This should be done prior 
+            to formula assignment in order to lessen the chances of incorrectly assigned 
+            formulas, where, for example a 13C containing CHO formula can be assigned to 
+            a monoistopic CHNOS formula.
+
+            The output of this tool are two csv files. 1 contains the flagged monoisotopic 
+            masses, and all masses that did not have a matching isotopic mass. The second 
+            contains the masses flagged as isotopic. These two dataframes should next be run 
+            in the "MFAssignCHO" or "MFAssign" to assign formulas to the masses.
+            
+            For more information please visit https://github.com/RECETOX/MFAssignR/blob/master/README.md
+    </help>
+
+    <expand macro="citations"/>
+</tool>
